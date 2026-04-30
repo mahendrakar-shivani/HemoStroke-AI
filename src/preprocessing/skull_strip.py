@@ -26,14 +26,13 @@ def threshold_skull_strip(image):
 
 def contour_skull_strip(image):
     """
-    Contour-based skull stripping.
-    Finds the largest contour (brain region) and keeps only that.
-    More precise than threshold method.
+    Improved contour-based skull stripping.
+    Uses erosion to better separate skull from brain tissue.
     """
     img_uint8 = (image * 255).astype(np.uint8)
 
-    # Threshold
-    _, binary = cv2.threshold(img_uint8, 15, 255, cv2.THRESH_BINARY)
+    # Higher threshold to exclude bright skull bone
+    _, binary = cv2.threshold(img_uint8, 20, 255, cv2.THRESH_BINARY)
 
     # Find contours
     contours, _ = cv2.findContours(
@@ -43,12 +42,16 @@ def contour_skull_strip(image):
     )
 
     if not contours:
-        return image  # no contour found, return original
+        return image
 
-    # Keep only the largest contour (= brain)
+    # Keep largest contour
     largest = max(contours, key=cv2.contourArea)
     mask    = np.zeros_like(img_uint8)
     cv2.drawContours(mask, [largest], -1, 255, thickness=cv2.FILLED)
+
+    # Erode mask to shrink inward — this removes the skull ring
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (20, 20))
+    mask   = cv2.erode(mask, kernel, iterations=2)
 
     result = image * (mask / 255.0)
     return result.astype(np.float32)
