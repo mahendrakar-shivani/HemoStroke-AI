@@ -78,7 +78,7 @@ def show_before_after(image_path, save_path="outputs/plots/before_after.png"):
     processed = resize_image(original)
     processed = normalize_image(processed)
     processed = remove_noise(processed)
-    processed = skull_strip(processed)
+    processed = skull_strip(processed, method="contour")
 
     # Plot
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
