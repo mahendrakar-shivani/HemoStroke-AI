@@ -78,7 +78,7 @@ def show_before_after(image_path, save_path="outputs/plots/before_after.png"):
     processed = resize_image(original)
     processed = normalize_image(processed)
     processed = remove_noise(processed)
-    processed = skull_strip(processed)
+    processed = skull_strip(processed, method="contour")
 
     # Plot
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
@@ -110,10 +110,10 @@ if __name__ == "__main__":
 
     # Find any image from your processed folder
     search_folders = [
-        "data/processed/png/Normal",
-        "data/processed/png/Stroke",
-        "data/raw/Normal/png",
-    ]
+    "data/raw/Normal/PNG",
+    "data/raw/Ischemia/PNG",
+    "data/raw/Bleeding/PNG",
+]  
 
     image_path = None
     for folder in search_folders:

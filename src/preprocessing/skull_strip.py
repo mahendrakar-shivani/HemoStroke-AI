@@ -26,32 +26,27 @@ def threshold_skull_strip(image):
 
 def contour_skull_strip(image):
     """
-    Improved contour-based skull stripping.
-    Uses erosion to better separate skull from brain tissue.
+    Skull stripping using intensity-based skull removal.
+    Uses connected components (not filled contours) to avoid
+    incorrectly re-including the skull-shaped gap as solid.
+    No morphological opening — that step was trimming thin
+    brain regions near the cerebellum/bottom edge.
     """
     img_uint8 = (image * 255).astype(np.uint8)
 
-    # Higher threshold to exclude bright skull bone
-    _, binary = cv2.threshold(img_uint8, 20, 255, cv2.THRESH_BINARY)
+    _, brain_only = cv2.threshold(img_uint8, 200, 255, cv2.THRESH_TOZERO_INV)
+    _, binary = cv2.threshold(brain_only, 15, 255, cv2.THRESH_BINARY)
 
-    # Find contours
-    contours, _ = cv2.findContours(
-        binary,
-        cv2.RETR_EXTERNAL,
-        cv2.CHAIN_APPROX_SIMPLE
-    )
+    kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
+    closed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel_close)
 
-    if not contours:
+    num_labels, labels = cv2.connectedComponents(closed)
+    if num_labels <= 1:
         return image
 
-    # Keep largest contour
-    largest = max(contours, key=cv2.contourArea)
-    mask    = np.zeros_like(img_uint8)
-    cv2.drawContours(mask, [largest], -1, 255, thickness=cv2.FILLED)
-
-    # Erode mask to shrink inward — this removes the skull ring
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (20, 20))
-    mask   = cv2.erode(mask, kernel, iterations=2)
+    sizes = [np.sum(labels == i) for i in range(1, num_labels)]
+    largest_label = 1 + int(np.argmax(sizes))
+    mask = np.where(labels == largest_label, 255, 0).astype(np.uint8)
 
     result = image * (mask / 255.0)
     return result.astype(np.float32)
