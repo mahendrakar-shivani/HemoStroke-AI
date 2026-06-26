@@ -110,10 +110,10 @@ if __name__ == "__main__":
 
     # Find any image from your processed folder
     search_folders = [
-        "data/processed/png/Normal",
-        "data/processed/png/Stroke",
-        "data/raw/Normal/png",
-    ]
+    "data/raw/Normal/PNG",
+    "data/raw/Ischemia/PNG",
+    "data/raw/Bleeding/PNG",
+]  
 
     image_path = None
     for folder in search_folders:

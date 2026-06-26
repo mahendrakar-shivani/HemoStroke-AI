@@ -29,17 +29,18 @@ def contour_skull_strip(image):
     Skull stripping using intensity-based skull removal.
     Uses connected components (not filled contours) to avoid
     incorrectly re-including the skull-shaped gap as solid.
+    No morphological opening — that step was trimming thin
+    brain regions near the cerebellum/bottom edge.
     """
     img_uint8 = (image * 255).astype(np.uint8)
 
     _, brain_only = cv2.threshold(img_uint8, 200, 255, cv2.THRESH_TOZERO_INV)
     _, binary = cv2.threshold(brain_only, 15, 255, cv2.THRESH_BINARY)
 
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
-    closed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
-    cleaned = cv2.morphologyEx(closed, cv2.MORPH_OPEN, kernel)
+    kernel_close = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
+    closed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel_close)
 
-    num_labels, labels = cv2.connectedComponents(cleaned)
+    num_labels, labels = cv2.connectedComponents(closed)
     if num_labels <= 1:
         return image
 
