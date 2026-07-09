@@ -21,11 +21,14 @@ class CTScanDataset(Dataset):
         return len(self.image_paths)
 
     def __getitem__(self, idx):
-        image = Image.open(self.image_paths[idx]).convert("L")  # grayscale
-        if self.transform:
-            image = self.transform(image)
-        label = torch.tensor(self.labels[idx], dtype=torch.float32)
-        return image, label
+        try:
+            image = Image.open(self.image_paths[idx]).convert("L")
+            if self.transform:
+                image = self.transform(image)
+            label = torch.tensor(self.labels[idx], dtype=torch.float32)
+            return image, label
+        except Exception:
+            return self.__getitem__((idx + 1) % len(self.image_paths))
 
 
 def load_dataset(data_dir):
