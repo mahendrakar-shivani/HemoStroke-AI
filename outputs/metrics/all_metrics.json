@@ -1,0 +1,26 @@
+{
+  "CNN Basic": {
+    "accuracy": 85.26315789473684,
+    "Dice Score": 0.7827,
+    "IoU": 0.643,
+    "Sensitivity": 0.7527,
+    "Specificity": 0.9071,
+    "F1 Score": 0.7827
+  },
+  "CNN Deep": {
+    "accuracy": 93.23308270676692,
+    "Dice Score": 0.9028,
+    "IoU": 0.8228,
+    "Sensitivity": 0.8913,
+    "Specificity": 0.9547,
+    "F1 Score": 0.9028
+  },
+  "CNN Lightweight": {
+    "accuracy": 43.609022556390975,
+    "Dice Score": 0.5283,
+    "IoU": 0.359,
+    "Sensitivity": 0.8955,
+    "Specificity": 0.1858,
+    "F1 Score": 0.5283
+  }
+}

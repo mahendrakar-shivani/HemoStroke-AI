@@ -2,6 +2,7 @@
 
 import os
 import sys
+import json
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
@@ -18,10 +19,12 @@ from metrics import compute_all_metrics
 DATA_DIR    = "data/processed/png"
 MODELS_DIR  = "outputs/models"
 PLOTS_DIR   = "outputs/plots"
+METRICS_DIR = "outputs/metrics"
 BATCH_SIZE  = 32
 SPLIT_RATIO = 0.8
 
 os.makedirs(PLOTS_DIR, exist_ok=True)
+os.makedirs(METRICS_DIR, exist_ok=True)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -129,3 +132,9 @@ if all_results:
               f"{r['Sensitivity']:>8.4f} "
               f"{r['Specificity']:>8.4f} "
               f"{r['F1 Score']:>8.4f}")
+
+# ─── SAVE METRICS FOR STREAMLIT APP ───────────────────────────────────────────
+metrics_path = os.path.join(METRICS_DIR, "all_metrics.json")
+with open(metrics_path, "w") as f:
+    json.dump(all_results, f, indent=2)
+print(f"\nSaved metrics → {metrics_path}")
