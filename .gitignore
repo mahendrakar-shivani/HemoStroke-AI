@@ -6,3 +6,4 @@ __pycache__/
 .ipynb_checkpoints/
 outputs/stroke_cnn.pth
 outputs/models/
+data/External_Test/
