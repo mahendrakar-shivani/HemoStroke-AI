@@ -36,7 +36,6 @@ class StrokeSegmentationDataset(Dataset):
         img_path = os.path.join(self.png_dir, f"{image_id}.png")
         mask_path = os.path.join(self.mask_dir, f"{image_id}.png")
 
-        # IMREAD_GRAYSCALE collapses RGBA/RGB to single channel automatically
         image = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
         mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
         if image is None:
@@ -49,8 +48,6 @@ class StrokeSegmentationDataset(Dataset):
         return image, mask
 
     def _joint_augment(self, image, mask):
-        # Same random flip/rotation applied to BOTH image and mask, so
-        # lesion location in the mask stays aligned with the image.
         if random.random() < 0.5:
             image = np.fliplr(image).copy()
             mask = np.fliplr(mask).copy()
@@ -58,7 +55,7 @@ class StrokeSegmentationDataset(Dataset):
             image = np.flipud(image).copy()
             mask = np.flipud(mask).copy()
 
-        k = random.choice([0, 1, 2, 3])  # 0/90/180/270 degree rotation
+        k = random.choice([0, 1, 2, 3])
         if k:
             image = np.rot90(image, k).copy()
             mask = np.rot90(mask, k).copy()
@@ -69,21 +66,19 @@ class StrokeSegmentationDataset(Dataset):
         image_id = self.image_ids[idx]
         image, mask = self._load_pair(image_id)
 
-        # image: linear interpolation (smooth). mask: nearest neighbor,
-        # so lesion edges stay binary instead of blurring into gray values.
         image = resize_image(image, self.target_size)
         mask = cv2.resize(mask, self.target_size, interpolation=cv2.INTER_NEAREST)
 
         if self.augment:
             image, mask = self._joint_augment(image, mask)
 
-        image = normalize_minmax(image)          # [0, 1]
-        image = (image - 0.5) / 0.5               # [-1, 1], matches CNN pipeline
+        image = normalize_minmax(image)
+        image = (image - 0.5) / 0.5
 
-        mask = (mask > 127).astype(np.float32)     # binarize 0/1
+        mask = (mask > 127).astype(np.float32)
 
-        image_t = torch.from_numpy(image).unsqueeze(0).float()  # (1, H, W)
-        mask_t = torch.from_numpy(mask).unsqueeze(0).float()    # (1, H, W)
+        image_t = torch.from_numpy(image).unsqueeze(0).float()
+        mask_t = torch.from_numpy(mask).unsqueeze(0).float()
         return image_t, mask_t
 
 
@@ -99,7 +94,6 @@ def load_segmentation_ids(root_dir, val_split=0.2, seed=42):
     df = pd.read_csv(labels_path)
     df["image_id"] = df["image_id"].astype(str)
 
-    # keep only ids that actually have both a PNG and a MASK on disk
     png_dir = os.path.join(root_dir, "PNG")
     mask_dir = os.path.join(root_dir, "MASKS")
     valid_ids = set(os.path.splitext(f)[0] for f in os.listdir(png_dir))
@@ -120,3 +114,18 @@ def load_segmentation_ids(root_dir, val_split=0.2, seed=42):
     print(f"  Val   : {len(val_ids)}")
 
     return train_ids, val_ids
+
+
+def get_lesion_labels(root_dir, image_ids):
+    """
+    Returns a list of 0/1 flags (has lesion or not) aligned with image_ids,
+    read from labels.csv. Used to build a WeightedRandomSampler so training
+    batches aren't dominated by the empty-mask majority.
+    """
+    import pandas as pd
+
+    labels_path = os.path.join(root_dir, "labels.csv")
+    df = pd.read_csv(labels_path)
+    df["image_id"] = df["image_id"].astype(str)
+    label_map = dict(zip(df["image_id"], df["Stroke"]))
+    return [label_map[i] for i in image_ids]
