@@ -6,6 +6,7 @@
 import os
 import sys
 
+import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
@@ -14,12 +15,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from models.attention_unet import AttentionUNet
 from segmentation_dataset import StrokeSegmentationDataset, load_segmentation_ids
 from losses import ComboLoss
-from metrics import dice_score, iou_score
+from metrics import compute_all_metrics
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────
 DATA_DIR    = "data/Segmentation_Data"   # must contain PNG/, MASKS/, labels.csv
 MODELS_DIR  = "outputs/models"
-BASE_CHANNELS = 16     # small model — dataset is only ~200 images
+BASE_CHANNELS = 16
 BATCH_SIZE  = 8
 EPOCHS      = 60
 LR          = 1e-4
@@ -48,7 +49,16 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     optimizer, mode="min", factor=0.5, patience=5
 )
 
-best_val_dice = 0.0
+# NOTE on model selection: with ~88% of validation images having empty
+# masks, a naive per-image Dice average is dominated by trivial "predict
+# nothing" scores (empty vs empty = 1.0). That average looks good even when
+# the model barely detects real lesions. Instead, we pool ALL validation
+# pixels together (same method evaluate_segmentation.py uses) and select by
+# balanced accuracy = (Sensitivity + Specificity) / 2. Raw Sensitivity alone
+# would be gamed by a degenerate "predict everything as lesion" model
+# (Sensitivity=1.0, Specificity=0.0) -- balanced accuracy only rewards a
+# checkpoint that's good at BOTH catching real lesions and not over-flagging.
+best_val_balanced_acc = 0.0
 model_path = os.path.join(MODELS_DIR, "attention_unet.pth")
 
 # ─── TRAIN LOOP ────────────────────────────────────────────────────────────
@@ -67,10 +77,10 @@ for epoch in range(1, EPOCHS + 1):
         train_loss += loss.item() * images.size(0)
     train_loss /= len(train_ds)
 
-    # ─── VALIDATION ─────────────────────────────────────────────────────
+    # ─── VALIDATION (pooled, not per-image averaged) ───────────────────
     model.eval()
     val_loss = 0.0
-    dice_scores, iou_scores = [], []
+    all_preds, all_masks = [], []
     with torch.no_grad():
         for images, masks in val_loader:
             images, masks = images.to(device), masks.to(device)
@@ -78,25 +88,26 @@ for epoch in range(1, EPOCHS + 1):
             loss = criterion(preds, masks)
             val_loss += loss.item() * images.size(0)
 
-            preds_np = preds.cpu().numpy()
-            masks_np = masks.cpu().numpy()
-            for p, m in zip(preds_np, masks_np):
-                dice_scores.append(dice_score(m, p))
-                iou_scores.append(iou_score(m, p))
+            all_preds.append(preds.cpu().numpy())
+            all_masks.append(masks.cpu().numpy())
 
     val_loss /= len(val_ds)
-    val_dice = sum(dice_scores) / len(dice_scores)
-    val_iou = sum(iou_scores) / len(iou_scores)
+    y_pred = np.concatenate(all_preds, axis=0)
+    y_true = np.concatenate(all_masks, axis=0)
+    metrics = compute_all_metrics(y_true, y_pred, threshold=0.5)
     scheduler.step(val_loss)
 
     print(f"Epoch {epoch:3d}/{EPOCHS} | "
           f"train_loss: {train_loss:.4f} | val_loss: {val_loss:.4f} | "
-          f"val_dice: {val_dice:.4f} | val_iou: {val_iou:.4f}")
+          f"Dice: {metrics['Dice Score']:.4f} | IoU: {metrics['IoU']:.4f} | "
+          f"Sens: {metrics['Sensitivity']:.4f} | Spec: {metrics['Specificity']:.4f}")
 
-    if val_dice > best_val_dice:
-        best_val_dice = val_dice
+    balanced_acc = (metrics["Sensitivity"] + metrics["Specificity"]) / 2
+    if balanced_acc > best_val_balanced_acc:
+        best_val_balanced_acc = balanced_acc
         torch.save(model.state_dict(), model_path)
-        print(f"  -> New best val_dice ({val_dice:.4f}), saved to {model_path}")
+        print(f"  -> New best balanced accuracy ({balanced_acc:.4f}, "
+              f"Sens={metrics['Sensitivity']:.4f} Spec={metrics['Specificity']:.4f}), saved to {model_path}")
 
-print(f"\nTraining complete. Best val Dice: {best_val_dice:.4f}")
+print(f"\nTraining complete. Best val balanced accuracy: {best_val_balanced_acc:.4f}")
 print(f"Model saved to: {model_path}")
