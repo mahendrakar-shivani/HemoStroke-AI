@@ -26,7 +26,7 @@ EPOCHS      = 60
 LR          = 1e-4
 VAL_SPLIT   = 0.2
 SEED        = 42
-MIN_SENSITIVITY_TO_SAVE = 0.05
+MIN_SENSITIVITY_TO_SAVE = 0.4
 
 os.makedirs(MODELS_DIR, exist_ok=True)
 
@@ -56,7 +56,7 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     optimizer, mode="min", factor=0.5, patience=5
 )
 
-best_val_balanced_acc = 0.0
+best_val_dice = 0.0
 model_path = os.path.join(MODELS_DIR, "attention_unet.pth")
 checkpoint_saved = False
 
@@ -99,17 +99,16 @@ for epoch in range(1, EPOCHS + 1):
           f"Dice: {metrics['Dice Score']:.4f} | IoU: {metrics['IoU']:.4f} | "
           f"Sens: {metrics['Sensitivity']:.4f} | Spec: {metrics['Specificity']:.4f}")
 
-    balanced_acc = (metrics["Sensitivity"] + metrics["Specificity"]) / 2
-    if metrics["Sensitivity"] >= MIN_SENSITIVITY_TO_SAVE and balanced_acc > best_val_balanced_acc:
-        best_val_balanced_acc = balanced_acc
+    if metrics["Sensitivity"] >= MIN_SENSITIVITY_TO_SAVE and metrics["Dice Score"] > best_val_dice:
+        best_val_dice = metrics["Dice Score"]
         torch.save(model.state_dict(), model_path)
         checkpoint_saved = True
-        print(f"  -> New best balanced accuracy ({balanced_acc:.4f}, "
+        print(f"  -> New best Dice ({metrics['Dice Score']:.4f}, "
               f"Sens={metrics['Sensitivity']:.4f} Spec={metrics['Specificity']:.4f}), saved to {model_path}")
 
 if not checkpoint_saved:
     print(f"\nWARNING: No checkpoint ever reached Sensitivity >= {MIN_SENSITIVITY_TO_SAVE}. "
           f"No model was saved.")
 else:
-    print(f"\nTraining complete. Best val balanced accuracy: {best_val_balanced_acc:.4f}")
+    print(f"\nTraining complete. Best val Dice: {best_val_dice:.4f}")
     print(f"Model saved to: {model_path}")
