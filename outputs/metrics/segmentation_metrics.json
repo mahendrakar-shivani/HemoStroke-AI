@@ -1,0 +1,9 @@
+{
+  "Attention U-Net": {
+    "Dice Score": 0.7262,
+    "IoU": 0.5701,
+    "Sensitivity": 0.6743,
+    "Specificity": 0.9999,
+    "F1 Score": 0.7262
+  }
+}
