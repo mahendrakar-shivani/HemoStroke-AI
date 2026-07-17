@@ -17,7 +17,7 @@ from losses import ComboLoss
 from metrics import dice_score, iou_score
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────
-DATA_DIR    = "data/External_Test"   # must contain PNG/, MASKS/, labels.csv
+DATA_DIR    = "data/Segmentation_Data"   # must contain PNG/, MASKS/, labels.csv
 MODELS_DIR  = "outputs/models"
 BASE_CHANNELS = 16     # small model — dataset is only ~200 images
 BATCH_SIZE  = 8

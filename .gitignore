@@ -7,3 +7,6 @@ __pycache__/
 outputs/stroke_cnn.pth
 outputs/models/
 data/External_Test/
+data/ct_ich/
+data/Segmentation_Data/
+Segmentation_Data.zip

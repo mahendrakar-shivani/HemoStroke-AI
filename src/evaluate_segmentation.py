@@ -17,7 +17,7 @@ from models.attention_unet import AttentionUNet
 from segmentation_dataset import StrokeSegmentationDataset, load_segmentation_ids
 from metrics import compute_all_metrics
 
-DATA_DIR    = "data/External_Test"
+DATA_DIR    = "data/Segmentation_Data"
 MODEL_PATH  = "outputs/models/attention_unet.pth"
 METRICS_DIR = "outputs/metrics"
 BASE_CHANNELS = 16
